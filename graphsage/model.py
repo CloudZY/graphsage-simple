@@ -177,5 +177,76 @@ def run_pubmed():
     print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
     print("Average batch time:", np.mean(times))
 
+def run_bc():
+    np.random.seed(1)
+    random.seed(1)
+    num_nodes = 5157
+    feature_dim = 500
+    embed_dim = 128
+#     load bc data
+    feat_data, labels, adj_lists = load_cora()
+    features = nn.Embedding(num_nodes, feature_dim)
+    features.weight = nn.Parameter(torch.FloatTensor(feat_data), requires_grad=False)
+
+    agg1 = MeanAggregator(features, cuda=True)
+    enc1 = Encoder(features, feature_dim, embed_dim, adj_lists, agg1, gcn=True, cuda=False)
+    agg2 = MeanAggregator(lambda nodes: enc1(nodes).t(), cuda=False)
+    enc2 = Encoder(lambda nodes: enc1(nodes).t(), enc1.embed_dim, embed_dim, adj_lists, agg2,
+                   base_model=enc1, gcn=True, cuda=False)
+    enc1.num_samples = 5
+    enc2.num_samples = 5
+
+    graphsage = RegressionGraphSage(enc2)
+    #    graphsage.cuda()
+    rand_indices = np.random.permutation(num_nodes)
+    # Split into 3 groups
+    val = rand_indices[:1000]
+    train = list(rand_indices[1000:])
+
+    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, graphsage.parameters()), lr=0.7)
+    times = []
+    for batch in range(100):
+        batch_nodes = train[:256]
+        random.shuffle(train)
+        start_time = time.time()
+        optimizer.zero_grad()
+        loss = graphsage.loss(batch_nodes,
+                              Variable(torch.LongTensor(target[np.array(batch_nodes)])))
+        loss.backward()
+        optimizer.step()
+        end_time = time.time()
+        times.append(end_time - start_time)
+        print(batch, loss.data[0])
+
+    embed_output = graphsage.forward(val)
+    cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+    print("Average Validation Cosine Similarity:", cos(embed_output, target[]))
+    # print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
+    print("Average batch time:", np.mean(times))
+
+def get_partial_list(count):
+    random.seed(1)
+    selected_list = []
+    with open("BlogCatalog-data/partial_data.txt") as fp:
+        candidate_list = fp.readline().split(" ")
+        random.shuffle(candidate_list)
+        selected_list = candidate_list[:count]
+    return selected_list
+
+class RegressionGraphSage(nn.Module):
+
+    def __init__(self, enc):
+        super(SupervisedGraphSage, self).__init__()
+        self.enc = enc
+        self.mse_loss = nn.MSELoss()
+
+    def forward(self, nodes):
+        embeds = self.enc(nodes)
+        return embeds.t()
+
+    def loss(self, nodes, target):
+        embeds = self.forward(nodes)
+        return self.mse_loss(embeds, target)
+
 if __name__ == "__main__":
     run_cora()

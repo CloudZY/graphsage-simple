@@ -178,11 +178,12 @@ def run_pubmed():
     print("Average batch time:", np.mean(times))
 
 def load_blog_catalog():
-    adj_lists = {}
+    adj_lists = defaultdict(set)
     with open("../BlogCatalog-data/bc_partial_adjlist.txt", "r") as fp:
         for line in fp:
             vals = line.split(" ")
-            adj_lists[int(vals[0])] = [int(x) for x in vals[1:-1]]
+            for x in vals[1:-1]:
+                adj_lists[int(vals[0])].add(int(x))
     num_nodes = 10312
     num_feats = 128
     features = np.zeros((num_nodes, num_feats))

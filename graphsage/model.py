@@ -12,6 +12,8 @@ from collections import defaultdict
 from graphsage.encoders import Encoder
 from graphsage.aggregators import MeanAggregator
 
+import json
+
 """
 Simple supervised GraphSAGE model as well as examples running the model
 on the Cora and Pubmed datasets.
@@ -176,6 +178,62 @@ def run_pubmed():
     val_output = graphsage.forward(val) 
     print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
     print("Average batch time:", np.mean(times))
+
+def load_blog_catalog():
+    adj_lists = {}
+    with open("BlogCatalog-data/bc_partial_adjlist.txt", "r") as fp:
+        for line in fp:
+            vals = line.split(" ")
+            adj_lists[vals[0]] = [int(x) for x in vals[1:]]
+    
+    features = {}
+    with open("BlogCatalog-data/vec_all.txt", "r") as fp:
+        for lines in fp:
+            line = lines.split(" ")
+            features[line[0]] = np.array([float(x) for x in line[1:]])
+ 
+
+    return adj_lists, features
+
+def preprocessing(selected_ids, train_count, k):
+    adj_lists, features = load_blog_catalog()
+    
+    # training_size = int(len(selected_ids) * split_ratio)
+    # rand_indices = np.random.permutation(np.arange(len(selected_ids)))
+    
+    # train = [selected_ids[rand_indices[i]]for i in range(training_size)]
+    # test = [selected_ids[rand_indices[i]] for i in range(training_size, len(selected_ids))]
+
+    test = [selected_ids[:train_count]]
+    train = [selected_ids[train_count:len(selected_ids)]]
+
+    for id in selected_ids:
+        #get list of neighbors
+        neighbors = adj_lists[id]
+        sampled_neighbors = []
+        while len(sampled_neighbors) != k:
+            rand_ind = np.random.randint(0, len(neighbors))
+            if neighbors[rand_ind] not in selected_ids:
+                sampled_neighbors.append(neighbors[rand_ind])
+
+        adj_lists[id] = sampled_neighbors
+
+    return adj_lists, features
+
+
+    
+
+
+
+
+    
+
+
+
+
+    return adj_lists, features
+
+
 
 if __name__ == "__main__":
     run_cora()

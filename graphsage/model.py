@@ -182,7 +182,7 @@ def load_blog_catalog():
     with open("../BlogCatalog-data/bc_partial_adjlist.txt", "r") as fp:
         for line in fp:
             vals = line.split(" ")
-            adj_lists[vals[0]] = [int(x) for x in vals[1:-1]]
+            adj_lists[int(vals[0])] = [int(x) for x in vals[1:-1]]
     num_nodes = 10312
     num_feats = 128
     features = np.zeros((num_nodes, num_feats))
@@ -191,7 +191,7 @@ def load_blog_catalog():
             line = lines.split(" ")
             ind = 0
             for x in line[1:-1]:
-                features[line[0]][ind] = float(x)
+                features[int(line[0])][ind] = float(x)
                 ind += 1
             # features[line[0][] = np.array([float(x) for x in line[1:-1]])
 
@@ -206,8 +206,8 @@ def preprocessing(selected_ids, test_count, k):
     # train = [selected_ids[rand_indices[i]]for i in range(training_size)]
     # test = [selected_ids[rand_indices[i]] for i in range(training_size, len(selected_ids))]
 
-    test = [selected_ids[:test_count]]
-    train = [selected_ids[test_count:len(selected_ids)]]
+    test = [int(x) for x in selected_ids[:test_count]]
+    train = [int(x) for x in selected_ids[test_count:len(selected_ids)]]
 
     for id in selected_ids:
         #get list of neighbors
@@ -275,7 +275,7 @@ def get_partial_list(count):
     random.seed(1)
     selected_list = []
     with open("../BlogCatalog-data/partial_data.txt") as fp:
-        candidate_list = fp.readline().split(" ")
+        candidate_list = [int(x) for x in fp.readline().split(" ")]
         random.shuffle(candidate_list)
         selected_list = candidate_list[:count]
     return selected_list
@@ -283,7 +283,7 @@ def get_partial_list(count):
 class RegressionGraphSage(nn.Module):
 
     def __init__(self, enc):
-        super(SupervisedGraphSage, self).__init__()
+        super(RegressionGraphSage, self).__init__()
         self.enc = enc
         self.mse_loss = nn.MSELoss()
 

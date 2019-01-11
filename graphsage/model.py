@@ -192,7 +192,6 @@ def load_blog_catalog():
             line = lines.split(" ")
             features[line[0]] = np.array([float(x) for x in line[1:]])
  
-
     return adj_lists, features
 
 def preprocessing(selected_ids, train_count, k):
@@ -219,21 +218,6 @@ def preprocessing(selected_ids, train_count, k):
         adj_lists[id] = sampled_neighbors
 
     return adj_lists, features
-
-
-    
-
-
-
-
-    
-
-
-
-
-    return adj_lists, features
-
-
 
 if __name__ == "__main__":
     run_cora()

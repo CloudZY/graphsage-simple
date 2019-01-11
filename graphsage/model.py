@@ -179,20 +179,20 @@ def run_pubmed():
 
 def load_blog_catalog():
     adj_lists = {}
-    with open("BlogCatalog-data/bc_partial_adjlist.txt", "r") as fp:
+    with open("../BlogCatalog-data/bc_partial_adjlist.txt", "r") as fp:
         for line in fp:
             vals = line.split(" ")
-            adj_lists[vals[0]] = [int(x) for x in vals[1:]]
+            adj_lists[vals[0]] = [int(x) for x in vals[1:-1]]
 
     features = {}
-    with open("BlogCatalog-data/vec_all.txt", "r") as fp:
+    with open("../BlogCatalog-data/vec_all.txt", "r") as fp:
         for lines in fp:
             line = lines.split(" ")
-            features[line[0]] = np.array([float(x) for x in line[1:]])
+            features[line[0]] = np.array([float(x) for x in line[1:-1]])
 
     return adj_lists, features
 
-def preprocessing(selected_ids, train_count, k):
+def preprocessing(selected_ids, test_count, k):
     adj_lists, features = load_blog_catalog()
 
     # training_size = int(len(selected_ids) * split_ratio)
@@ -201,8 +201,8 @@ def preprocessing(selected_ids, train_count, k):
     # train = [selected_ids[rand_indices[i]]for i in range(training_size)]
     # test = [selected_ids[rand_indices[i]] for i in range(training_size, len(selected_ids))]
 
-    test = [selected_ids[:train_count]]
-    train = [selected_ids[train_count:len(selected_ids)]]
+    test = [selected_ids[:test_count]]
+    train = [selected_ids[test_count:len(selected_ids)]]
 
     for id in selected_ids:
         #get list of neighbors
@@ -220,11 +220,13 @@ def preprocessing(selected_ids, train_count, k):
 def run_bc():
     np.random.seed(1)
     random.seed(1)
-    num_nodes = 5157
-    feature_dim = 500
+    num_nodes = 10312
+    feature_dim = 128
     embed_dim = 128
 #     load bc data
-    feat_data, labels, adj_lists = load_cora()
+    selected_id = get_partial_list(1000)
+    adj_lists, feat_data, train, test = preprocessing(selected_id, 300, 5)
+
     features = nn.Embedding(num_nodes, feature_dim)
     features.weight = nn.Parameter(torch.FloatTensor(feat_data), requires_grad=False)
 
@@ -238,10 +240,10 @@ def run_bc():
 
     graphsage = RegressionGraphSage(enc2)
     #    graphsage.cuda()
-    rand_indices = np.random.permutation(num_nodes)
-    # Split into 3 groups
-    val = rand_indices[:1000]
-    train = list(rand_indices[1000:])
+    # rand_indices = np.random.permutation(num_nodes)
+    # # Split into 3 groups
+    # val = rand_indices[:1000]
+    # train = list(rand_indices[1000:])
 
     optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, graphsage.parameters()), lr=0.7)
     times = []
@@ -251,23 +253,23 @@ def run_bc():
         start_time = time.time()
         optimizer.zero_grad()
         loss = graphsage.loss(batch_nodes,
-                              Variable(torch.LongTensor(target[np.array(batch_nodes)])))
+                              Variable(torch.LongTensor(feat_data[np.array(batch_nodes)])))
         loss.backward()
         optimizer.step()
         end_time = time.time()
         times.append(end_time - start_time)
         print(batch, loss.data[0])
 
-    embed_output = graphsage.forward(val)
+    embed_output = graphsage.forward(test)
     cos = nn.CosineSimilarity(dim=1, eps=1e-6)
-    print("Average Validation Cosine Similarity:", cos(embed_output, target[]))
+    print("Average Validation Cosine Similarity:", cos(embed_output, feat_data[test]))
     # print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
     print("Average batch time:", np.mean(times))
 
 def get_partial_list(count):
     random.seed(1)
     selected_list = []
-    with open("BlogCatalog-data/partial_data.txt") as fp:
+    with open("../BlogCatalog-data/partial_data.txt") as fp:
         candidate_list = fp.readline().split(" ")
         random.shuffle(candidate_list)
         selected_list = candidate_list[:count]
@@ -289,4 +291,4 @@ class RegressionGraphSage(nn.Module):
         return self.mse_loss(embeds, target)
 
 if __name__ == "__main__":
-    run_cora()
+    run_bc()

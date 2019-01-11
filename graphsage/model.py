@@ -189,13 +189,12 @@ def load_blog_catalog():
     features = np.zeros((num_nodes, num_feats))
     with open("../BlogCatalog-data/vec_all.txt", "r") as fp:
         for lines in fp:
-            line = lines.split(" ")
+            line = lines.strip().split(" ")
             ind = 0
-            for x in line[1:-1]:
+            for x in line[1:]:
                 features[int(line[0])][ind] = float(x)
                 ind += 1
             # features[line[0][] = np.array([float(x) for x in line[1:-1]])
-
     return adj_lists, features
 
 def preprocessing(selected_ids, test_count, k):

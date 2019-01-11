@@ -259,12 +259,12 @@ def run_bc():
         start_time = time.time()
         optimizer.zero_grad()
         loss = graphsage.loss(batch_nodes,
-                              Variable(torch.LongTensor(feat_data[np.array(batch_nodes)])))
+                              Variable(torch.FloatTensor(feat_data[np.array(batch_nodes)])))
         loss.backward()
         optimizer.step()
         end_time = time.time()
         times.append(end_time - start_time)
-        print(batch, loss.data[0])
+        print(batch, loss)
 
     embed_output = graphsage.forward(test)
     cos = nn.CosineSimilarity(dim=1, eps=1e-6)

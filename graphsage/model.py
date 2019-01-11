@@ -179,7 +179,7 @@ def run_pubmed():
 
 def load_blog_catalog():
     adj_lists = defaultdict(set)
-    with open("../BlogCatalog-data/bc_partial_adjlist.txt", "r") as fp:
+    with open("BlogCatalog-data/bc_partial_adjlist.txt", "r") as fp:
         for line in fp:
             vals = line.split(" ")
             for x in vals[1:-1]:
@@ -187,7 +187,7 @@ def load_blog_catalog():
     num_nodes = 10312
     num_feats = 128
     features = np.zeros((num_nodes, num_feats))
-    with open("../BlogCatalog-data/vec_all.txt", "r") as fp:
+    with open("BlogCatalog-data/vec_all.txt", "r") as fp:
         for lines in fp:
             line = lines.split(" ")
             ind = 0
@@ -212,12 +212,12 @@ def preprocessing(selected_ids, test_count, k):
 
     for id in selected_ids:
         #get list of neighbors
-        neighbors = adj_lists[id]
-        sampled_neighbors = []
+        neighbors = list(adj_lists[id])
+        sampled_neighbors = set()
         while len(sampled_neighbors) != k:
             rand_ind = np.random.randint(0, len(neighbors))
             if neighbors[rand_ind] not in selected_ids:
-                sampled_neighbors.append(neighbors[rand_ind])
+                sampled_neighbors.add(neighbors[rand_ind])
 
         adj_lists[id] = sampled_neighbors
 
@@ -275,7 +275,7 @@ def run_bc():
 def get_partial_list(count):
     random.seed(1)
     selected_list = []
-    with open("../BlogCatalog-data/partial_data.txt") as fp:
+    with open("BlogCatalog-data/partial_data.txt") as fp:
         candidate_list = [int(x) for x in fp.readline().split(" ")]
         random.shuffle(candidate_list)
         selected_list = candidate_list[:count]

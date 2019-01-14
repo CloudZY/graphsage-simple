@@ -43,17 +43,17 @@ def load_cora():
     labels = np.empty((num_nodes,1), dtype=np.int64)
     node_map = {}
     label_map = {}
-    with open("cora/cora.content") as fp:
+    with open("../cora/cora.content") as fp:
         for i,line in enumerate(fp):
             info = line.strip().split()
-            feat_data[i,:] = map(float, info[1:-1])
+            feat_data[i, :] = map(float, info[1:-1])
             node_map[info[0]] = i
             if not info[-1] in label_map:
                 label_map[info[-1]] = len(label_map)
             labels[i] = label_map[info[-1]]
 
     adj_lists = defaultdict(set)
-    with open("cora/cora.cites") as fp:
+    with open("../cora/cora.cites") as fp:
         for i,line in enumerate(fp):
             info = line.strip().split()
             paper1 = node_map[info[0]]
@@ -179,7 +179,7 @@ def run_pubmed():
 
 def load_blog_catalog():
     adj_lists = defaultdict(set)
-    with open("../BlogCatalog-data/bc_partial_adjlist.txt", "r") as fp:
+    with open("../BlogCatalog-data/bc_adjlist.txt", "r") as fp:
         for line in fp:
             vals = line.split(" ")
             for x in vals[1:-1]:
@@ -240,8 +240,9 @@ def run_bc():
     agg2 = MeanAggregator(lambda nodes: enc1(nodes).t(), cuda=False)
     enc2 = Encoder(lambda nodes: enc1(nodes).t(), enc1.embed_dim, embed_dim, adj_lists, agg2,
                    base_model=enc1, gcn=True, cuda=False)
-    enc1.num_samples = 5
-    enc2.num_samples = 5
+
+    enc1.num_sample = 5
+    enc2.num_sample = 5
 
     graphsage = RegressionGraphSage(enc2)
     #    graphsage.cuda()
@@ -296,4 +297,5 @@ class RegressionGraphSage(nn.Module):
         return self.mse_loss(embeds, target)
 
 if __name__ == "__main__":
+    #run_cora()
     run_bc()

@@ -268,7 +268,7 @@ def run_bc():
 
     embed_output = graphsage.forward(test)
     cos = nn.CosineSimilarity(dim=1, eps=1e-6)
-    print("Average Validation Cosine Similarity:", cos(embed_output, feat_data[test]))
+    print("Average Validation Cosine Similarity:", cos(embed_output, torch.FloatTensor(feat_data[test])))
     # print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
     print("Average batch time:", np.mean(times))
 
@@ -297,5 +297,4 @@ class RegressionGraphSage(nn.Module):
         return self.mse_loss(embeds, target)
 
 if __name__ == "__main__":
-    #run_cora()
     run_bc()

@@ -53,8 +53,8 @@ class MeanAggregator(nn.Module):
         mask[row_indices, column_indices] = 1
         if self.cuda:
             mask = mask.cuda()
-        num_neigh = mask.sum(1, keepdim=True)
-        mask = mask.div(num_neigh)
+        # num_neigh = mask.sum(1, keepdim=True)
+        mask = mask.div(num_sample)
         if self.cuda:
             embed_matrix = self.features(torch.LongTensor(unique_nodes_list).cuda())
         else:

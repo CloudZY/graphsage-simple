@@ -46,6 +46,7 @@ class MeanAggregator(nn.Module):
         else:
             samp_neighs = to_neighs
 
+
         if self.gcn:
             samp_neighs = [samp_neigh + set([nodes[i]]) for i, samp_neigh in enumerate(samp_neighs)]
         unique_nodes_list = list(set.union(*samp_neighs))
@@ -56,7 +57,7 @@ class MeanAggregator(nn.Module):
         mask[row_indices, column_indices] = 1
         if self.cuda:
             mask = mask.cuda()
-        #num_neigh = mask.sum(1, keepdim=True)
+        num_neigh = mask.sum(1, keepdim=True)
 
         #####
         mask = mask.div(num_sample)

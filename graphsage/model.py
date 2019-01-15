@@ -160,7 +160,7 @@ def run_pubmed():
 
     optimizer = torch.optim.SGD(filter(lambda p : p.requires_grad, graphsage.parameters()), lr=0.7)
     times = []
-    for batch in range(200):
+    for batch in range(100):
         batch_nodes = train[:1024]
         random.shuffle(train)
         start_time = time.time()
@@ -210,7 +210,7 @@ def preprocessing(selected_ids, test_count, k):
     train = [int(x) for x in selected_ids[test_count:len(selected_ids)]]
 
     for id in selected_ids:
-        #get list of neighbors
+        # get list of neighbors
         neighbors = list(adj_lists[id])
         sampled_neighbors = set()
         while len(sampled_neighbors) != k:
@@ -229,38 +229,38 @@ def run_bc():
     feature_dim = 128
     embed_dim = 128
 #     load bc data
-    selected_id = get_partial_list(2000)
-    adj_lists, feat_data, train, test = preprocessing(selected_id, 600, 5)
+    selected_id = get_partial_list(1000)
+    adj_lists, feat_data, train, test = preprocessing(selected_id, 300, 10)
 
     features = nn.Embedding(num_nodes, feature_dim)
     features.weight = nn.Parameter(torch.FloatTensor(feat_data), requires_grad=False)
 
     agg1 = MeanAggregator(features, cuda=True)
-    enc1 = Encoder(features, feature_dim, embed_dim, adj_lists, agg1, gcn=True, cuda=False)
+    enc1 = Encoder(features, feature_dim, embed_dim, adj_lists, agg1, gcn=False, cuda=False)
     agg2 = MeanAggregator(lambda nodes: enc1(nodes).t(), cuda=False)
     enc2 = Encoder(lambda nodes: enc1(nodes).t(), enc1.embed_dim, embed_dim, adj_lists, agg2,
-                   base_model=enc1, gcn=True, cuda=False)
-    agg3 = MeanAggregator(lambda nodes: enc2(nodes).t(), cuda=False)
-    enc3 = Encoder(lambda nodes: enc2(nodes).t(), enc2.embed_dim, embed_dim, adj_lists, agg3,
-                   base_model=enc2, gcn=True, cuda=False)
-    agg4 = MeanAggregator(lambda nodes: enc3(nodes).t(), cuda=False)
-    enc4 = Encoder(lambda nodes: enc3(nodes).t(), enc3.embed_dim, embed_dim, adj_lists, agg4,
-                   base_model=enc3, gcn=True, cuda=False)
-    agg5 = MeanAggregator(lambda nodes: enc4(nodes).t(), cuda=False)
-    enc5 = Encoder(lambda nodes: enc4(nodes).t(), enc4.embed_dim, embed_dim, adj_lists, agg5,
-                   base_model=enc4, gcn=True, cuda=False)
-    agg6 = MeanAggregator(lambda nodes: enc5(nodes).t(), cuda=False)
-    enc6 = Encoder(lambda nodes: enc5(nodes).t(), enc5.embed_dim, embed_dim, adj_lists, agg6,
-                   base_model=enc5, gcn=True, cuda=False)
+                   base_model=enc1, gcn=False, cuda=False)
+    # agg3 = MeanAggregator(lambda nodes: enc2(nodes).t(), cuda=False)
+    # enc3 = Encoder(lambda nodes: enc2(nodes).t(), enc2.embed_dim, embed_dim, adj_lists, agg3,
+    #                base_model=enc2, gcn=True, cuda=False)
+    # agg4 = MeanAggregator(lambda nodes: enc3(nodes).t(), cuda=False)
+    # enc4 = Encoder(lambda nodes: enc3(nodes).t(), enc3.embed_dim, embed_dim, adj_lists, agg4,
+    #                base_model=enc3, gcn=True, cuda=False)
+    # agg5 = MeanAggregator(lambda nodes: enc4(nodes).t(), cuda=False)
+    # enc5 = Encoder(lambda nodes: enc4(nodes).t(), enc4.embed_dim, embed_dim, adj_lists, agg5,
+    #                base_model=enc4, gcn=True, cuda=False)
+    # agg6 = MeanAggregator(lambda nodes: enc5(nodes).t(), cuda=False)
+    # enc6 = Encoder(lambda nodes: enc5(nodes).t(), enc5.embed_dim, embed_dim, adj_lists, agg6,
+    #                base_model=enc5, gcn=True, cuda=False)
 
-    enc1.num_sample = 5
-    enc2.num_sample = 5
-    enc3.num_sample = 5
-    enc4.num_sample = 5
-    enc5.num_sample = 5
-    enc6.num_sample = 5
+    enc1.num_sample = 10
+    enc2.num_sample = 10
+    # enc3.num_sample = 15
+    # enc4.num_sample = 15
+    # enc5.num_sample = 10
+    # enc6.num_sample = 10
 
-    graphsage = RegressionGraphSage(enc5)
+    graphsage = RegressionGraphSage(enc2)
     #    graphsage.cuda()
     # rand_indices = np.random.permutation(num_nodes)
     # # Split into 3 groups
@@ -286,7 +286,7 @@ def run_bc():
     cos = nn.CosineSimilarity(dim=1, eps=1e-6)
     print("Test Embedding Results")
     print(embed_output)
-    print("Average Validation Cosine Similarity:", cos(embed_output, torch.FloatTensor(feat_data[test])))
+    print("Average Validation Cosine Similarity:", cos(embed_output, torch.FloatTensor(feat_data[test])).mean(0).item())
     # print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
     print("Average batch time:", np.mean(times))
 

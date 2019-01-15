@@ -52,5 +52,5 @@ class Encoder(nn.Module):
             combined = neigh_feats
 
         #combined = F.relu(self.weight.mm(combined.t()))
-        combined = F.tanh(self.weight.mm(combined.t()))
+        combined = torch.tanh(self.weight.mm(combined.t()))
         return combined

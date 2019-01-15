@@ -34,6 +34,9 @@ class MeanAggregator(nn.Module):
         num_sample --- number of neighbors to sample. No sampling if None.
         """
         # Local pointers to functions (speed hack)
+        # print("Agg To Neighbor")
+        # for to_neigh in to_neighs:
+        #     print(to_neigh)
         _set = set
         if not num_sample is None:
             _sample = random.sample
@@ -53,8 +56,13 @@ class MeanAggregator(nn.Module):
         mask[row_indices, column_indices] = 1
         if self.cuda:
             mask = mask.cuda()
-        # num_neigh = mask.sum(1, keepdim=True)
+        #num_neigh = mask.sum(1, keepdim=True)
+
+        #####
         mask = mask.div(num_sample)
+
+        #mask = mask.div(num_neigh)
+
         if self.cuda:
             embed_matrix = self.features(torch.LongTensor(unique_nodes_list).cuda())
         else:

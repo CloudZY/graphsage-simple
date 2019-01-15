@@ -28,6 +28,7 @@ class Encoder(nn.Module):
         self.aggregator.cuda = cuda
         self.weight = nn.Parameter(
                 torch.FloatTensor(embed_dim, self.feat_dim if self.gcn else 2 * self.feat_dim))
+        print(len(self.weight[0]))
         init.xavier_uniform(self.weight)
 
     def forward(self, nodes):
@@ -36,8 +37,11 @@ class Encoder(nn.Module):
 
         nodes     -- list of nodes
         """
+
         neigh_feats = self.aggregator.forward(nodes, [self.adj_lists[int(node)] for node in nodes], 
                 self.num_sample)
+        # print("Features of neighbor")
+        # print(neigh_feats)
         if not self.gcn:
             if self.cuda:
                 self_feats = self.features(torch.LongTensor(nodes).cuda())
@@ -46,5 +50,7 @@ class Encoder(nn.Module):
             combined = torch.cat([self_feats, neigh_feats], dim=1)
         else:
             combined = neigh_feats
-        combined = F.relu(self.weight.mm(combined.t()))
+
+        #combined = F.relu(self.weight.mm(combined.t()))
+        combined = F.tanh(self.weight.mm(combined.t()))
         return combined

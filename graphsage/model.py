@@ -240,11 +240,27 @@ def run_bc():
     agg2 = MeanAggregator(lambda nodes: enc1(nodes).t(), cuda=False)
     enc2 = Encoder(lambda nodes: enc1(nodes).t(), enc1.embed_dim, embed_dim, adj_lists, agg2,
                    base_model=enc1, gcn=True, cuda=False)
+    agg3 = MeanAggregator(lambda nodes: enc2(nodes).t(), cuda=False)
+    enc3 = Encoder(lambda nodes: enc2(nodes).t(), enc2.embed_dim, embed_dim, adj_lists, agg3,
+                   base_model=enc2, gcn=True, cuda=False)
+    agg4 = MeanAggregator(lambda nodes: enc3(nodes).t(), cuda=False)
+    enc4 = Encoder(lambda nodes: enc3(nodes).t(), enc3.embed_dim, embed_dim, adj_lists, agg4,
+                   base_model=enc3, gcn=True, cuda=False)
+    agg5 = MeanAggregator(lambda nodes: enc4(nodes).t(), cuda=False)
+    enc5 = Encoder(lambda nodes: enc4(nodes).t(), enc4.embed_dim, embed_dim, adj_lists, agg5,
+                   base_model=enc4, gcn=True, cuda=False)
+    agg6 = MeanAggregator(lambda nodes: enc5(nodes).t(), cuda=False)
+    enc6 = Encoder(lambda nodes: enc5(nodes).t(), enc5.embed_dim, embed_dim, adj_lists, agg6,
+                   base_model=enc5, gcn=True, cuda=False)
 
     enc1.num_sample = 5
     enc2.num_sample = 5
+    enc3.num_sample = 5
+    enc4.num_sample = 5
+    enc5.num_sample = 5
+    enc6.num_sample = 5
 
-    graphsage = RegressionGraphSage(enc2)
+    graphsage = RegressionGraphSage(enc5)
     #    graphsage.cuda()
     # rand_indices = np.random.permutation(num_nodes)
     # # Split into 3 groups
@@ -268,6 +284,8 @@ def run_bc():
 
     embed_output = graphsage.forward(test)
     cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+    print("Test Embedding Results")
+    print(embed_output)
     print("Average Validation Cosine Similarity:", cos(embed_output, torch.FloatTensor(feat_data[test])))
     # print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
     print("Average batch time:", np.mean(times))

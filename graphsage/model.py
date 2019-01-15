@@ -229,8 +229,8 @@ def run_bc():
     feature_dim = 128
     embed_dim = 128
 #     load bc data
-    selected_id = get_partial_list(1000)
-    adj_lists, feat_data, train, test = preprocessing(selected_id, 300, 5)
+    selected_id = get_partial_list(2000)
+    adj_lists, feat_data, train, test = preprocessing(selected_id, 600, 5)
 
     features = nn.Embedding(num_nodes, feature_dim)
     features.weight = nn.Parameter(torch.FloatTensor(feat_data), requires_grad=False)
@@ -251,9 +251,9 @@ def run_bc():
     # val = rand_indices[:1000]
     # train = list(rand_indices[1000:])
 
-    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, graphsage.parameters()), lr=0.7)
+    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, graphsage.parameters()), lr=0.3)
     times = []
-    for batch in range(100):
+    for batch in range(1000):
         batch_nodes = train[:256]
         random.shuffle(train)
         start_time = time.time()
@@ -286,7 +286,8 @@ class RegressionGraphSage(nn.Module):
     def __init__(self, enc):
         super(RegressionGraphSage, self).__init__()
         self.enc = enc
-        self.mse_loss = nn.MSELoss()
+        self.cos_loss = nn.CosineEmbeddingLoss()
+        # self.mse_loss = nn.MSELoss()
 
     def forward(self, nodes):
         embeds = self.enc(nodes)
@@ -294,7 +295,10 @@ class RegressionGraphSage(nn.Module):
 
     def loss(self, nodes, target):
         embeds = self.forward(nodes)
-        return self.mse_loss(embeds, target)
+        # return self.mse_loss(embeds, target)
+        labels = np.ones(len(target))
+        res = self.cos_loss(embeds, target, Variable(torch.FloatTensor(labels)))
+        return res
 
 if __name__ == "__main__":
     run_bc()

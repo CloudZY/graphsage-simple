@@ -11,6 +11,7 @@ from collections import defaultdict
 
 from graphsage.encoders import Encoder
 from graphsage.aggregators import MeanAggregator
+import copy
 
 """
 Simple supervised GraphSAGE model as well as examples running the model
@@ -177,13 +178,20 @@ def run_pubmed():
     print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
     print("Average batch time:", np.mean(times))
 
-def load_blog_catalog():
+
+def load_blog_catalog(select_ids):
+
     adj_lists = defaultdict(set)
+    adj_lists_empty = defaultdict(set)
+
     with open("../BlogCatalog-data/bc_adjlist.txt", "r") as fp:
         for line in fp:
             vals = line.split(" ")
-            for x in vals[1:-1]:
+            for x in vals[1:]:
                 adj_lists[int(vals[0])].add(int(x))
+                if int(vals[0]) not in select_ids and int(x) not in select_ids:
+                    adj_lists_empty[int(vals[0])].add(int(x))
+
     num_nodes = 10312
     num_feats = 128
     features = np.zeros((num_nodes, num_feats))
@@ -195,32 +203,48 @@ def load_blog_catalog():
                 features[int(line[0])][ind] = float(x)
                 ind += 1
             # features[line[0][] = np.array([float(x) for x in line[1:-1]])
-    return adj_lists, features
+    return adj_lists, adj_lists_empty, features
+
 
 def preprocessing(selected_ids, test_count, k):
-    adj_lists, features = load_blog_catalog()
+    adj_lists, adj_lists_empty, features = load_blog_catalog(selected_ids)
 
-    # training_size = int(len(selected_ids) * split_ratio)
-    # rand_indices = np.random.permutation(np.arange(len(selected_ids)))
+    adj_lists_train = copy.deepcopy(adj_lists_empty)
+    adj_lists_test = copy.deepcopy(adj_lists_empty)
 
-    # train = [selected_ids[rand_indices[i]]for i in range(training_size)]
-    # test = [selected_ids[rand_indices[i]] for i in range(training_size, len(selected_ids))]
 
     test = [int(x) for x in selected_ids[:test_count]]
     train = [int(x) for x in selected_ids[test_count:len(selected_ids)]]
 
-    for id in selected_ids:
+    for id in train:
         # get list of neighbors
         neighbors = list(adj_lists[id])
         sampled_neighbors = set()
         while len(sampled_neighbors) != k:
             rand_ind = np.random.randint(0, len(neighbors))
             if neighbors[rand_ind] not in selected_ids:
+                if not adj_lists_train[neighbors[rand_ind]]:
+                    adj_lists_train[neighbors[rand_ind]] = set()
+                adj_lists_train[neighbors[rand_ind]].add(id)
+                # add edges from both direction
+                adj_lists_train[neighbors[rand_ind]].add(id)
                 sampled_neighbors.add(neighbors[rand_ind])
+        adj_lists_train[id] = sampled_neighbors
 
-        adj_lists[id] = sampled_neighbors
+    for id in test:
+        neighbors = list(adj_lists[id])
+        sampled_neighbors = set()
+        while len(sampled_neighbors) != k:
+            rand_ind = np.random.randint(0, len(neighbors))
+            if neighbors[rand_ind] not in selected_ids:
+                # add edges from both direction
+                if not adj_lists_test[neighbors[rand_ind]]:
+                    adj_lists_test[neighbors[rand_ind]] = set()
+                adj_lists_test[neighbors[rand_ind]].add(id)
+                sampled_neighbors.add(neighbors[rand_ind])
+        adj_lists_test[id] = sampled_neighbors
 
-    return adj_lists, features, train, test
+    return adj_lists_train, adj_lists_test, features, train, test
 
 def run_bc():
     np.random.seed(1)
@@ -228,17 +252,17 @@ def run_bc():
     num_nodes = 10312
     feature_dim = 128
     embed_dim = 128
-#     load bc data
-    selected_id = get_partial_list(1000)
-    adj_lists, feat_data, train, test = preprocessing(selected_id, 300, 10)
+    # load bc data
+    selected_id = get_partial_list(1500)
+    adj_lists_train, adj_lists_test, feat_data, train, test = preprocessing(selected_id, 400, 5)
 
     features = nn.Embedding(num_nodes, feature_dim)
     features.weight = nn.Parameter(torch.FloatTensor(feat_data), requires_grad=False)
 
     agg1 = MeanAggregator(features, cuda=True)
-    enc1 = Encoder(features, feature_dim, embed_dim, adj_lists, agg1, gcn=False, cuda=False)
+    enc1 = Encoder(features, feature_dim, embed_dim, adj_lists_train, agg1, gcn=False, cuda=False)
     agg2 = MeanAggregator(lambda nodes: enc1(nodes).t(), cuda=False)
-    enc2 = Encoder(lambda nodes: enc1(nodes).t(), enc1.embed_dim, embed_dim, adj_lists, agg2,
+    enc2 = Encoder(lambda nodes: enc1(nodes).t(), enc1.embed_dim, embed_dim, adj_lists_train, agg2,
                    base_model=enc1, gcn=False, cuda=False)
     # agg3 = MeanAggregator(lambda nodes: enc2(nodes).t(), cuda=False)
     # enc3 = Encoder(lambda nodes: enc2(nodes).t(), enc2.embed_dim, embed_dim, adj_lists, agg3,
@@ -253,17 +277,17 @@ def run_bc():
     # enc6 = Encoder(lambda nodes: enc5(nodes).t(), enc5.embed_dim, embed_dim, adj_lists, agg6,
     #                base_model=enc5, gcn=True, cuda=False)
 
-    enc1.num_sample = 10
-    enc2.num_sample = 10
-    # enc3.num_sample = 15
-    # enc4.num_sample = 15
+    enc1.num_sample = 8
+    enc2.num_sample = 8
+    # enc3.num_sample = 5
+    # enc4.num_sample = 5
     # enc5.num_sample = 10
     # enc6.num_sample = 10
 
     graphsage = RegressionGraphSage(enc2)
-    #    graphsage.cuda()
+    # graphsage.cuda()
     # rand_indices = np.random.permutation(num_nodes)
-    # # Split into 3 groups
+    # Split into 3 groups
     # val = rand_indices[:1000]
     # train = list(rand_indices[1000:])
 
@@ -282,22 +306,51 @@ def run_bc():
         times.append(end_time - start_time)
         print(batch, loss)
 
+    #Save model
+    torch.save(graphsage.state_dict(), "GraphSageModel.pt")
+    run_bc_test(adj_lists_test, feat_data, test)
+
+    # embed_output = graphsage.forward(test)
+    # cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+    # print("Test Embedding Results")
+    # print(embed_output)
+    # print("Average Validation Cosine Similarity:", cos(embed_output, torch.FloatTensor(feat_data[test])).mean(0).item())
+    # # print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
+    print("Average batch time:", np.mean(times))
+
+def run_bc_test(adj_lists_test, feat_data, test):
+    np.random.seed(1)
+    random.seed(1)
+    num_nodes = 10312
+    feature_dim = 128
+    embed_dim = 128
+
+    features = nn.Embedding(num_nodes, feature_dim)
+    features.weight = nn.Parameter(torch.FloatTensor(feat_data), requires_grad=False)
+
+    agg1 = MeanAggregator(features, cuda=True)
+    enc1 = Encoder(features, feature_dim, embed_dim, adj_lists_test, agg1, gcn=False, cuda=False)
+    agg2 = MeanAggregator(lambda nodes: enc1(nodes).t(), cuda=False)
+    enc2 = Encoder(lambda nodes: enc1(nodes).t(), enc1.embed_dim, embed_dim, adj_lists_test, agg2,
+                   base_model=enc1, gcn=False, cuda=False)
+    enc1.num_sample = 8
+    enc2.num_sample = 8
+    graphsage = RegressionGraphSage(enc2)
+    graphsage.load_state_dict(torch.load('GraphSageModel.pt'))
+    graphsage.eval()
+
     embed_output = graphsage.forward(test)
     cos = nn.CosineSimilarity(dim=1, eps=1e-6)
-    print("Test Embedding Results")
-    print(embed_output)
     print("Average Validation Cosine Similarity:", cos(embed_output, torch.FloatTensor(feat_data[test])).mean(0).item())
-    # print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
-    print("Average batch time:", np.mean(times))
 
 def get_partial_list(count):
     random.seed(1)
-    selected_list = []
     with open("../BlogCatalog-data/partial_data.txt") as fp:
         candidate_list = [int(x) for x in fp.readline().split(" ")]
         random.shuffle(candidate_list)
         selected_list = candidate_list[:count]
     return selected_list
+
 
 class RegressionGraphSage(nn.Module):
 
@@ -318,5 +371,7 @@ class RegressionGraphSage(nn.Module):
         res = self.cos_loss(embeds, target, Variable(torch.FloatTensor(labels)))
         return res
 
+
 if __name__ == "__main__":
     run_bc()
+

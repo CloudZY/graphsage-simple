@@ -202,26 +202,28 @@ def load_blog_catalog(select_ids):
             for x in line[1:]:
                 features[int(line[0])][ind] = float(x)
                 ind += 1
-            # features[line[0][] = np.array([float(x) for x in line[1:-1]])
     return adj_lists, adj_lists_empty, features
 
 
-def preprocessing(selected_ids, test_count, k):
-    adj_lists, adj_lists_empty, features = load_blog_catalog(selected_ids)
+def preprocessing(selected_ids, test_count, k, adj_lists, adj_lists_empty, features):
+    #adj_lists, adj_lists_empty, features = load_blog_catalog(selected_ids)
 
     adj_lists_train = copy.deepcopy(adj_lists_empty)
     adj_lists_test = copy.deepcopy(adj_lists_empty)
 
-
     test = [int(x) for x in selected_ids[:test_count]]
     train = [int(x) for x in selected_ids[test_count:len(selected_ids)]]
+
+    # randomly pick a number within k
+    # sample_count = random.randint(k)
 
     for id in train:
         # get list of neighbors
         neighbors = list(adj_lists[id])
         sampled_neighbors = set()
         while len(sampled_neighbors) != k:
-            rand_ind = np.random.randint(0, len(neighbors))
+            #rand_ind = np.random.randint(0, len(neighbors))
+            rand_ind = np.random.choice(len(neighbors))
             if neighbors[rand_ind] not in selected_ids:
                 if not adj_lists_train[neighbors[rand_ind]]:
                     adj_lists_train[neighbors[rand_ind]] = set()
@@ -235,7 +237,8 @@ def preprocessing(selected_ids, test_count, k):
         neighbors = list(adj_lists[id])
         sampled_neighbors = set()
         while len(sampled_neighbors) != k:
-            rand_ind = np.random.randint(0, len(neighbors))
+            #rand_ind = np.random.randint(0, len(neighbors))
+            rand_ind = np.random.choice(len(neighbors))
             if neighbors[rand_ind] not in selected_ids:
                 # add edges from both direction
                 if not adj_lists_test[neighbors[rand_ind]]:
@@ -244,17 +247,22 @@ def preprocessing(selected_ids, test_count, k):
                 sampled_neighbors.add(neighbors[rand_ind])
         adj_lists_test[id] = sampled_neighbors
 
-    return adj_lists_train, adj_lists_test, features, train, test
+    return adj_lists_train, adj_lists_test, features, train, test, adj_lists
 
-def run_bc():
-    np.random.seed(1)
-    random.seed(1)
+
+def run_bc(sample_count, model_name, output):
+    # np.random.seed(1)
+    #random.seed(1)
     num_nodes = 10312
     feature_dim = 128
     embed_dim = 128
     # load bc data
     selected_id = get_partial_list(1500)
-    adj_lists_train, adj_lists_test, feat_data, train, test = preprocessing(selected_id, 400, 5)
+
+    adj_lists, adj_lists_empty, features = load_blog_catalog(selected_id)
+
+    adj_lists_train, adj_lists_test, feat_data, train, test, adj_lists = preprocessing(selected_id, 300, 5, adj_lists,
+                                                                                      adj_lists_empty, features)
 
     features = nn.Embedding(num_nodes, feature_dim)
     features.weight = nn.Parameter(torch.FloatTensor(feat_data), requires_grad=False)
@@ -264,63 +272,45 @@ def run_bc():
     agg2 = MeanAggregator(lambda nodes: enc1(nodes).t(), cuda=False)
     enc2 = Encoder(lambda nodes: enc1(nodes).t(), enc1.embed_dim, embed_dim, adj_lists_train, agg2,
                    base_model=enc1, gcn=False, cuda=False)
-    # agg3 = MeanAggregator(lambda nodes: enc2(nodes).t(), cuda=False)
-    # enc3 = Encoder(lambda nodes: enc2(nodes).t(), enc2.embed_dim, embed_dim, adj_lists, agg3,
-    #                base_model=enc2, gcn=True, cuda=False)
-    # agg4 = MeanAggregator(lambda nodes: enc3(nodes).t(), cuda=False)
-    # enc4 = Encoder(lambda nodes: enc3(nodes).t(), enc3.embed_dim, embed_dim, adj_lists, agg4,
-    #                base_model=enc3, gcn=True, cuda=False)
-    # agg5 = MeanAggregator(lambda nodes: enc4(nodes).t(), cuda=False)
-    # enc5 = Encoder(lambda nodes: enc4(nodes).t(), enc4.embed_dim, embed_dim, adj_lists, agg5,
-    #                base_model=enc4, gcn=True, cuda=False)
-    # agg6 = MeanAggregator(lambda nodes: enc5(nodes).t(), cuda=False)
-    # enc6 = Encoder(lambda nodes: enc5(nodes).t(), enc5.embed_dim, embed_dim, adj_lists, agg6,
-    #                base_model=enc5, gcn=True, cuda=False)
 
-    enc1.num_sample = 8
-    enc2.num_sample = 8
-    # enc3.num_sample = 5
-    # enc4.num_sample = 5
-    # enc5.num_sample = 10
-    # enc6.num_sample = 10
+    enc1.num_sample = sample_count
+    enc2.num_sample = 10
 
     graphsage = RegressionGraphSage(enc2)
-    # graphsage.cuda()
-    # rand_indices = np.random.permutation(num_nodes)
-    # Split into 3 groups
-    # val = rand_indices[:1000]
-    # train = list(rand_indices[1000:])
 
     optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, graphsage.parameters()), lr=0.3)
     times = []
-    for batch in range(1000):
+    for epoch in range(1000):
         batch_nodes = train[:256]
         random.shuffle(train)
         start_time = time.time()
         optimizer.zero_grad()
+
+        adj_lists_train_1, _, _, _, _, _ = preprocessing(selected_id, 300, sample_count, adj_lists, adj_lists_empty, features)
+        adj_lists_train_2, _, _, _, _, _ = preprocessing(selected_id, 300, 10, adj_lists, adj_lists_empty, features)
+        enc1.adj_lists = adj_lists_train_1
+        enc2.adj_lists = adj_lists_train_2
+
         loss = graphsage.loss(batch_nodes,
                               Variable(torch.FloatTensor(feat_data[np.array(batch_nodes)])))
         loss.backward()
         optimizer.step()
         end_time = time.time()
         times.append(end_time - start_time)
-        print(batch, loss)
+        print(epoch, loss)
 
-    #Save model
-    torch.save(graphsage.state_dict(), "GraphSageModel.pt")
-    run_bc_test(adj_lists_test, feat_data, test)
+    # Save model
+    torch.save(graphsage.state_dict(), model_name)
+    # run_bc_test_based_on_group(adj_lists_test, feat_data, test, model_name, output, sample_count)
 
     # embed_output = graphsage.forward(test)
     # cos = nn.CosineSimilarity(dim=1, eps=1e-6)
-    # print("Test Embedding Results")
-    # print(embed_output)
     # print("Average Validation Cosine Similarity:", cos(embed_output, torch.FloatTensor(feat_data[test])).mean(0).item())
     # # print("Validation F1:", f1_score(labels[val], val_output.data.numpy().argmax(axis=1), average="micro"))
     print("Average batch time:", np.mean(times))
 
-def run_bc_test(adj_lists_test, feat_data, test):
-    np.random.seed(1)
-    random.seed(1)
+
+def run_bc_test_based_on_group(adj_lists_test, feat_data, test, model_name, output, edge_count):
     num_nodes = 10312
     feature_dim = 128
     embed_dim = 128
@@ -333,18 +323,64 @@ def run_bc_test(adj_lists_test, feat_data, test):
     agg2 = MeanAggregator(lambda nodes: enc1(nodes).t(), cuda=False)
     enc2 = Encoder(lambda nodes: enc1(nodes).t(), enc1.embed_dim, embed_dim, adj_lists_test, agg2,
                    base_model=enc1, gcn=False, cuda=False)
-    enc1.num_sample = 8
-    enc2.num_sample = 8
+    enc1.num_sample = edge_count
+    enc2.num_sample = 10
     graphsage = RegressionGraphSage(enc2)
-    graphsage.load_state_dict(torch.load('GraphSageModel.pt'))
+    graphsage.load_state_dict(torch.load(model_name))
     graphsage.eval()
 
     embed_output = graphsage.forward(test)
     cos = nn.CosineSimilarity(dim=1, eps=1e-6)
     print("Average Validation Cosine Similarity:", cos(embed_output, torch.FloatTensor(feat_data[test])).mean(0).item())
 
+    #Save Embedding to file
+    np.savetxt(output, embed_output.data.numpy())
+
+    # with open("test_id" + str(edge_count) + ".txt", "w") as f:
+    #     for item in test:
+    #         f.write(str(item) + " ")
+
+
+def run_bc_test(adj_lists_test, feat_data, test, model_name, output, edge_count):
+    num_nodes = 10312
+    feature_dim = 128
+    embed_dim = 128
+
+    features = nn.Embedding(num_nodes, feature_dim)
+    features.weight = nn.Parameter(torch.FloatTensor(feat_data), requires_grad=False)
+
+    agg1 = MeanAggregator(features, cuda=True)
+    enc1 = Encoder(features, feature_dim, embed_dim, adj_lists_test, agg1, gcn=False, cuda=False)
+    agg2 = MeanAggregator(lambda nodes: enc1(nodes).t(), cuda=False)
+    enc2 = Encoder(lambda nodes: enc1(nodes).t(), enc1.embed_dim, embed_dim, adj_lists_test, agg2,
+                   base_model=enc1, gcn=False, cuda=False)
+    enc1.num_sample = edge_count
+    enc2.num_sample = edge_count
+    graphsage = RegressionGraphSage(enc2)
+    graphsage.load_state_dict(torch.load(model_name))
+    graphsage.eval()
+
+
+    # test data based on degree (group)
+    test_data = []
+    with open("../BlogCatalog-data/data_id0.txt", "r") as f:
+        vecs = f.readline().split(" ")
+        for x in vecs:
+            test.append(x)
+
+    embed_output = graphsage.forward(test_data)
+    cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+    print("Average Validation Cosine Similarity:", cos(embed_output, torch.FloatTensor(feat_data[test])).mean(0).item())
+
+    #Save Embedding to file
+    np.savetxt(output, embed_output.data.numpy())
+
+    with open("test_id" + str(edge_count) + ".txt", "w") as f:
+        for item in test:
+            f.write(str(item) + " ")
+
 def get_partial_list(count):
-    random.seed(1)
+    # random.seed(1)
     with open("../BlogCatalog-data/partial_data.txt") as fp:
         candidate_list = [int(x) for x in fp.readline().split(" ")]
         random.shuffle(candidate_list)
@@ -373,5 +409,21 @@ class RegressionGraphSage(nn.Module):
 
 
 if __name__ == "__main__":
-    run_bc()
+    # Generate new model
+    for x in range(1, 11):
+        run_bc(x, "GSM_rand_" + str(x) + ".pt", "embedding" + str(x) + ".txt")
+
+    #Get embedding based on groups
+    # selected_id = get_partial_list(1500)
+    # adj_lists_train, adj_lists_test, feat_data, train, test, adj_list = preprocessing(selected_id, 400, 10)
+    # for i in range(10):
+    #     # run_bc(i, "GraphSageModel_10_" + str(i) + ".pt", "embedding" + str(i) + ".txt")
+    #     #read test data
+    #     with open("../BlogCatalog-data/data_id" + str(i) + ".txt") as f:
+    #         test = [int(x) for x in f.readline().strip().split(" ")]
+    #     # j represents edge number, i represents group id
+    #     for j in range(1, 11):
+    #         run_bc_test_based_on_group(adj_list, feat_data, test, "GraphSageModel_10_" + str(j) + ".pt", "../BlogCatalog-data/embedding/embedding_g_" +
+    #                                    str(i) + "_" + str(j) + ".txt", j)
+
 

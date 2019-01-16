@@ -214,38 +214,61 @@ def preprocessing(selected_ids, test_count, k, adj_lists, adj_lists_empty, featu
     test = [int(x) for x in selected_ids[:test_count]]
     train = [int(x) for x in selected_ids[test_count:len(selected_ids)]]
 
+    selected_ids = set(selected_ids)
+
     # randomly pick a number within k
     # sample_count = random.randint(k)
 
     for id in train:
         # get list of neighbors
-        neighbors = list(adj_lists[id])
-        sampled_neighbors = set()
-        while len(sampled_neighbors) != k:
-            #rand_ind = np.random.randint(0, len(neighbors))
-            rand_ind = np.random.choice(len(neighbors))
-            if neighbors[rand_ind] not in selected_ids:
-                if not adj_lists_train[neighbors[rand_ind]]:
-                    adj_lists_train[neighbors[rand_ind]] = set()
-                adj_lists_train[neighbors[rand_ind]].add(id)
-                # add edges from both direction
-                adj_lists_train[neighbors[rand_ind]].add(id)
-                sampled_neighbors.add(neighbors[rand_ind])
+        #neighbors = list(adj_lists[id])
+        # delete select id from neighbors
+        neighbors = adj_lists[id].difference(selected_ids)
+        sampled_neighbors = random.sample(neighbors, k)
+        # sampled_neighbors = set(sampled_neighbors)
+
+        for neighbor in sampled_neighbors:
+            if not adj_lists_train[neighbor]:
+                adj_lists_train[neighbor] = set()
+            adj_lists_train[neighbor].add(id)
         adj_lists_train[id] = sampled_neighbors
 
+        # sampled_neighbors = set()
+        # while len(sampled_neighbors) != k:
+        #     #rand_ind = np.random.randint(0, len(neighbors))
+        #     rand_ind = np.random.choice(len(neighbors))
+        #     if neighbors[rand_ind] not in selected_ids:
+        #         if not adj_lists_train[neighbors[rand_ind]]:
+        #             adj_lists_train[neighbors[rand_ind]] = set()
+        #         adj_lists_train[neighbors[rand_ind]].add(id)
+        #
+        #         sampled_neighbors.add(neighbors[rand_ind])
+        # adj_lists_train[id] = sampled_neighbors
+
     for id in test:
-        neighbors = list(adj_lists[id])
-        sampled_neighbors = set()
-        while len(sampled_neighbors) != k:
-            #rand_ind = np.random.randint(0, len(neighbors))
-            rand_ind = np.random.choice(len(neighbors))
-            if neighbors[rand_ind] not in selected_ids:
-                # add edges from both direction
-                if not adj_lists_test[neighbors[rand_ind]]:
-                    adj_lists_test[neighbors[rand_ind]] = set()
-                adj_lists_test[neighbors[rand_ind]].add(id)
-                sampled_neighbors.add(neighbors[rand_ind])
+        neighbors = adj_lists[id].difference(selected_ids)
+        sampled_neighbors = random.sample(neighbors, k)
+        # sampled_neighbors = set(sampled_neighbors)
+
+        for neighbor in sampled_neighbors:
+            if not adj_lists_test[neighbor]:
+                adj_lists_test[neighbor] = set()
+            adj_lists_test[neighbor].add(id)
         adj_lists_test[id] = sampled_neighbors
+
+
+        # neighbors = list(adj_lists[id])
+        # sampled_neighbors = set()
+        # while len(sampled_neighbors) != k:
+        #     #rand_ind = np.random.randint(0, len(neighbors))
+        #     rand_ind = np.random.choice(len(neighbors))
+        #     if neighbors[rand_ind] not in selected_ids:
+        #         # add edges from both direction
+        #         if not adj_lists_test[neighbors[rand_ind]]:
+        #             adj_lists_test[neighbors[rand_ind]] = set()
+        #         adj_lists_test[neighbors[rand_ind]].add(id)
+        #         sampled_neighbors.add(neighbors[rand_ind])
+        # adj_lists_test[id] = sampled_neighbors
 
     return adj_lists_train, adj_lists_test, features, train, test, adj_lists
 
@@ -410,7 +433,7 @@ class RegressionGraphSage(nn.Module):
 
 if __name__ == "__main__":
     # Generate new model
-    for x in range(1, 11):
+    for x in range(2, 6):
         run_bc(x, "GSM_rand_" + str(x) + ".pt", "embedding" + str(x) + ".txt")
 
     #Get embedding based on groups

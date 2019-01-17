@@ -205,7 +205,7 @@ def load_blog_catalog(select_ids):
     return adj_lists, adj_lists_empty, features
 
 
-def preprocessing(selected_ids, test_count, k, adj_lists, adj_lists_empty, features):
+def preprocessing(selected_ids, test_count, k, adj_lists, adj_lists_empty, features, fix):
     #adj_lists, adj_lists_empty, features = load_blog_catalog(selected_ids)
 
     adj_lists_train = copy.deepcopy(adj_lists_empty)
@@ -217,7 +217,8 @@ def preprocessing(selected_ids, test_count, k, adj_lists, adj_lists_empty, featu
     selected_ids = set(selected_ids)
 
     # randomly pick a number within k
-    # sample_count = random.randint(k)
+    if not fix:
+        k = random.randint(1, k)
 
     for id in train:
         # get list of neighbors
@@ -284,8 +285,8 @@ def run_bc(sample_count, model_name, output):
 
     adj_lists, adj_lists_empty, features = load_blog_catalog(selected_id)
 
-    adj_lists_train, adj_lists_test, feat_data, train, test, adj_lists = preprocessing(selected_id, 300, 5, adj_lists,
-                                                                                      adj_lists_empty, features)
+    adj_lists_train, adj_lists_test, feat_data, train, test, adj_lists = preprocessing(selected_id, 300, 10, adj_lists,
+                                                                                      adj_lists_empty, features, True)
 
     features = nn.Embedding(num_nodes, feature_dim)
     features.weight = nn.Parameter(torch.FloatTensor(feat_data), requires_grad=False)
@@ -309,8 +310,8 @@ def run_bc(sample_count, model_name, output):
         start_time = time.time()
         optimizer.zero_grad()
 
-        adj_lists_train_1, _, _, _, _, _ = preprocessing(selected_id, 300, sample_count, adj_lists, adj_lists_empty, features)
-        adj_lists_train_2, _, _, _, _, _ = preprocessing(selected_id, 300, 10, adj_lists, adj_lists_empty, features)
+        adj_lists_train_1, _, _, _, _, _ = preprocessing(selected_id, 300, sample_count, adj_lists, adj_lists_empty, features, False)
+        adj_lists_train_2, _, _, _, _, _ = preprocessing(selected_id, 300, 10, adj_lists, adj_lists_empty, features, True)
         enc1.adj_lists = adj_lists_train_1
         enc2.adj_lists = adj_lists_train_2
 
@@ -433,8 +434,9 @@ class RegressionGraphSage(nn.Module):
 
 if __name__ == "__main__":
     # Generate new model
-    for x in range(2, 6):
-        run_bc(x, "GSM_rand_" + str(x) + ".pt", "embedding" + str(x) + ".txt")
+    run_bc(10, "GSM_rand_rand" + ".pt", "embedding__rand" + ".txt")
+    # for x in range(7, 11):
+    #     run_bc(x, "GSM_rand_" + str(x) + ".pt", "embedding" + str(x) + ".txt")
 
     #Get embedding based on groups
     # selected_id = get_partial_list(1500)

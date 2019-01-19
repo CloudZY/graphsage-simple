@@ -28,8 +28,8 @@ class Encoder(nn.Module):
         self.aggregator.cuda = cuda
         self.weight = nn.Parameter(
                 torch.FloatTensor(embed_dim, self.feat_dim if self.gcn else 2 * self.feat_dim))
-        print(len(self.weight[0]))
         init.xavier_uniform(self.weight)
+        # self.fc_layer = nn.Linear(embed_dim, embed_dim)
 
     def forward(self, nodes):
         """
@@ -53,4 +53,5 @@ class Encoder(nn.Module):
 
         #combined = F.relu(self.weight.mm(combined.t()))
         combined = torch.tanh(self.weight.mm(combined.t()))
+        # combined = F.sigmoid(self.fc_layer(combined.t()))
         return combined

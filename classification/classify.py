@@ -7,8 +7,8 @@ from time import time
 from .calc_node_degree import get_node_degree, get_node_degree_dp_distribution
 import math
 
-
 import json
+
 
 class TopKRanker(OneVsRestClassifier):
     def predict(self, X, top_k_list):
@@ -42,10 +42,10 @@ class Classifier(object):
         Y_ = self.predict(X, top_k_list)
         Y = self.binarizer.transform(Y)
         # averages = ["micro", "macro", "samples", "weighted"]
-        
+
         # results = {}
         # for average in averages:
-            # results[average] = f1_score(Y, Y_, average=average)
+        # results[average] = f1_score(Y, Y_, average=average)
         # print('Results, using embeddings of dimensionality', len(self.embeddings[X[0]]))
         # print('-------------------')
         # results["macro"] = f1_score(Y, Y_, average="macro")
@@ -53,19 +53,6 @@ class Classifier(object):
         # return results
         # print('-------------------')
         return f1_score(Y, Y_, average="macro")
-    
-    # def evaluate(self, X, Y):
-    #     top_k_list = [len(l) for l in Y]
-    #     Y_ = self.predict(X, top_k_list)
-    #     Y = self.binarizer.transform(Y)
-    #     averages = ["micro", "macro", "samples", "weighted"]
-    #     results = {}
-    #     for average in averages:
-    #         results[average] = f1_score(Y, Y_, average=average)
-    #     # print('Results, using embeddings of dimensionality', len(self.embeddings[X[0]]))
-    #     # print('-------------------')
-    #     print(results)
-    #     return results
 
     def predict(self, X, top_k_list):
         X_ = numpy.asarray([self.embeddings[int(x)] for x in X])
@@ -84,32 +71,31 @@ class Classifier(object):
         X_test = [X[shuffle_indices[i]] for i in range(training_size, len(X))]
         Y_test = [Y[shuffle_indices[i]] for i in range(training_size, len(X))]
 
-        # Get the X_test and Y_test 
-        # split by node degree 
+        # Get the X_test and Y_test
+        # split by node degree
         # evaluate based on node degree, get f1 score
 
         self.train(X_train, Y_train, Y)
         numpy.random.set_state(state)
 
-        #get the node degree dict
+        # get the node degree dict
         degree = get_node_degree()
-        #dict for storing sorted degree value
+        # dict for storing sorted degree value
         sorted_degree = {}
         degree_f1_scores = {}
 
-        #classify them by node degree
+        # classify them by node degree
         for (x_val, y_val) in zip(X_test, Y_test):
-            #find its node degree
+            # find its node degree
             deg = degree[x_val]
             if deg not in sorted_degree:
                 sorted_degree[deg] = [[] for i in range(0, 2)]
-                #append x, y values to sorted degree
+                # append x, y values to sorted degree
             sorted_degree[deg][0].append(x_val)
             sorted_degree[deg][1].append(y_val)
-        
-        #when evaluate, evaluate based on their node degrees
+
+        # when evaluate, evaluate based on their node degrees
         for deg in sorted_degree.keys():
-           
             x_vals = sorted_degree[deg][0]
             y_vals = sorted_degree[deg][1]
             # print("Node dgree: ", deg)
@@ -117,11 +103,10 @@ class Classifier(object):
             # print(self.evaluate(x_vals, y_vals))
             print(sorted_degree[deg])
             degree_f1_scores[deg] = self.evaluate(x_vals, y_vals)
-        
 
         with open("n2v_degree_f1.json", "w") as fi:
             json.dump(degree_f1_scores, fi)
-            
+
         # print(X_test, Y_test)
         # return self.evaluate(X_test, Y_test)
 
@@ -139,7 +124,7 @@ class Classifier(object):
     #     for x in X_all:
     #         ind = X.index(str(x))
     #         Y_all.append(Y[ind])
-        
+
     #     X_train = [X_all[shuffle_indices[i]] for i in range(training_size)]
     #     Y_train = [Y_all[shuffle_indices[i]] for i in range(training_size)]
 
@@ -148,7 +133,6 @@ class Classifier(object):
 
     #     self.train(X_train, Y_train, Y_all)
     #     numpy.random.set_state(state)
-        
 
     #     res = self.evaluate(X_test, Y_test)
     #     # print (self.evaluate(X_test, Y_test))
@@ -171,8 +155,7 @@ class Classifier(object):
                 ind = X.index(str(x))
                 Y_all.append(Y[ind])
         print(X_all)
-        
-        
+
         training_size = int(train_percent * len(X_all))
         numpy.random.seed(seed)
         shuffle_indices = numpy.random.permutation(numpy.arange(len(X_all)))
@@ -182,7 +165,7 @@ class Classifier(object):
         Y_test = [Y_all[shuffle_indices[i]] for i in range(training_size, len(X_all))]
         self.train(X_train, Y_train, Y_all)
         numpy.random.set_state(state)
-        res =  self.evaluate(X_test, Y_test)
+        res = self.evaluate(X_test, Y_test)
 
         with open("degree_10_gs.txt", "a") as f:
             f.write(str(res) + "\n")
@@ -193,17 +176,17 @@ class Classifier(object):
         start = 0
         end = 10312
         group_range = math.floor(end / num_groups)
-        
+
         for i in range(num_groups):
             if i == num_groups - 1:
                 X_all = X[start: end]
-                Y_all = Y[start : end]
-                
-            else:
-                X_all = X[start : start + group_range]
-                Y_all = Y[start : start + group_range]
+                Y_all = Y[start: end]
 
-            #Get the min & max degree for each group
+            else:
+                X_all = X[start: start + group_range]
+                Y_all = Y[start: start + group_range]
+
+            # Get the min & max degree for each group
             min_degree = node_degree_dict[str(X[start])]
             max_degree = node_degree_dict[str(X[start + group_range])]
 
@@ -217,10 +200,10 @@ class Classifier(object):
 
             self.train(X_train, Y_train, Y_all)
             numpy.random.set_state(state)
-            res =  self.evaluate(X_test, Y_test)
+            res = self.evaluate(X_test, Y_test)
             with open(fname, "a") as f:
-                f.write(str(res) + " " + str(min_degree) + " " + str(max_degree) + "\n" )
-            start = start + group_range 
+                f.write(str(res) + " " + str(min_degree) + " " + str(max_degree) + "\n")
+            start = start + group_range
 
             # if i >= 5:
             #     with open("partial_data.txt", "a") as f:
@@ -247,33 +230,6 @@ class Classifier(object):
         return self.evaluate(X_test, Y_test)
 
 
-    def n2v_split_train_evaluate(self, X, Y, train_percent):
-        #n2v train on all data, test based on node degree 
-        state = numpy.random.get_state()
-
-        training_size = int(train_precent * len(X))
-        numpy.random.seed(seed)
-        shuffle_indices = numpy.random.permutation(numpy.arange(len(X)))
-        X_train = [X[shuffle_indices[i]] for i in range(training_size)]
-        Y_train = [Y[shuffle_indices[i]] for i in range(training_size)]
-        X_test = [X[shuffle_indices[i]] for i in range(training_size, len(X))]
-        Y_test = [Y[shuffle_indices[i]] for i in range(training_size, len(X))]
-
-        self.train(X_train, Y_train, Y)
-        numpy.random.set_state(state)
-
-        # Test based on degree
-        #Classify test based on degree
-
-
-
-
-        return self.evaluate(X_test, Y_test)
-
-
-
-
-
 def load_embeddings(filename):
     fin = open(filename, 'r')
     node_num, size = [int(x) for x in fin.readline().strip().split()]
@@ -283,7 +239,7 @@ def load_embeddings(filename):
         if l == '':
             break
         vec = l.strip().split(' ')
-        assert len(vec) == size+1
+        assert len(vec) == size + 1
         vectors[vec[0]] = [float(x) for x in vec[1:]]
     fin.close()
     assert len(vectors) == node_num

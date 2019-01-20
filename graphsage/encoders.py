@@ -29,6 +29,7 @@ class Encoder(nn.Module):
         self.weight = nn.Parameter(
                 torch.FloatTensor(embed_dim, self.feat_dim if self.gcn else 2 * self.feat_dim))
         init.xavier_uniform(self.weight)
+        # Possible additional encoding layer
         # self.fc_layer = nn.Linear(embed_dim, embed_dim)
 
     def forward(self, nodes):
@@ -51,7 +52,7 @@ class Encoder(nn.Module):
         else:
             combined = neigh_feats
 
-        #combined = F.relu(self.weight.mm(combined.t()))
+        # combined = F.relu(self.weight.mm(combined.t()))
         combined = torch.tanh(self.weight.mm(combined.t()))
         # combined = F.sigmoid(self.fc_layer(combined.t()))
         return combined

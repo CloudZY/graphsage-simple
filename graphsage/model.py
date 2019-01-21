@@ -334,6 +334,18 @@ def run_bc(sample_count, model_name, output):
     enc2_test = Encoder(lambda nodes: enc1_test(nodes).t(), enc1_test.embed_dim, embed_dim, adj_lists_test, agg2_test,
                    base_model=enc1_test, gcn=False, cuda=False)
 
+    # agg3_test = MeanAggregator(lambda nodes: enc2_test(nodes).t(), cuda=False)
+    # enc3_test = Encoder(lambda nodes: enc2_test(nodes).t(), enc2_test.embed_dim, embed_dim, adj_lists_test, agg3_test,
+    #                base_model=enc2_test, gcn=False, cuda=False)
+    # agg4_test = MeanAggregator(lambda nodes: enc3_test(nodes).t(), cuda=False)
+    # enc4_test = Encoder(lambda nodes: enc3_test(nodes).t(), enc3_test.embed_dim, embed_dim, adj_lists_test, agg4_test,
+    #                     base_model=enc3_test, gcn=False, cuda=False)
+    enc1_test.num_sample = sample_count
+    enc2_test.num_sample = 10
+    # enc3_test.num_sample = 10
+    # enc4_test.num_sample = 10
+
+
 
     optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, graphsage.parameters()), lr=0.3)
     times = []
